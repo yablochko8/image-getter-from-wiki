@@ -20,27 +20,48 @@ output_dir = 'images'
 if not os.path.exists(output_dir):
     os.makedirs(output_dir)
 
+
+# Function to query Wikidata API to get image URL
+def get_image_url_from_wikidata(search_term):
+    try:
+        # Wikidata query to search for the individual
+        url = f"https://www.wikidata.org/w/api.php?action=wbsearchentities&search={search_term}&language=en&format=json"
+        response = requests.get(url).json()
+
+        if response['search']:
+            # Get the first entity id (assumes first result is the correct person)
+            entity_id = response['search'][0]['id']
+            
+            # Query for the entity's data, including the image
+            entity_url = f"https://www.wikidata.org/wiki/Special:EntityData/{entity_id}.json"
+            entity_data = requests.get(entity_url).json()
+
+            # Try to extract the image from the entity data
+            claims = entity_data['entities'][entity_id]['claims']
+            if 'P18' in claims:
+                # P18 is the property for an image
+                image_filename = claims['P18'][0]['mainsnak']['datavalue']['value']
+                # Construct the URL to the image on Wikimedia Commons
+                commons_url = f"https://commons.wikimedia.org/wiki/Special:FilePath/{image_filename.replace(' ', '_')}"
+                return commons_url
+            else:
+                print(f"No image found for {search_term}")
+        else:
+            print(f"No result found for {search_term}")
+    except Exception as e:
+        print(f"Error fetching image for {search_term}: {e}")
+    
+    return None
+
+
 # Function to download and process image
 def download_and_process_image(search_term, file_name):
     try:
-        # Search for the image (this part would need a custom search or API implementation)
-        # Here, we're assuming you already have a URL for the image
-        search_url = f"https://commons.wikimedia.org/w/index.php?search={search_term}&title=Special:MediaSearch&go=Go&type=image"
-        response = requests.get(search_url)
-        # Parse the HTML content
-        
-        soup = BeautifulSoup(response.content, 'html.parser')
-        
-        # Find the first image in the search results
-        img_element = soup.find('img', class_='sdms-image')
-        
-        if img_element and 'src' in img_element.attrs:
-            image_url = img_element['src']
-            if not image_url.startswith('http'):
-                image_url = 'https:' + image_url
-        else:
-            raise Exception("No image found in search results")
-        
+        # Get the image URL from Wikidata
+        image_url = get_image_url_from_wikidata(search_term)
+        if image_url is None:
+            return
+
         # Download the image
         img_response = requests.get(image_url)
         img = Image.open(BytesIO(img_response.content))
