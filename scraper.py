@@ -130,9 +130,9 @@ for filename in os.listdir(output_dir):
                 width, height = img.size
                 size = min(width, height)
                 left = (width - size) // 2
-                top = (height - size) // 2
+                top = 0  # Start cropping from the top
                 right = left + size
-                bottom = top + size
+                bottom = size
                 img = img.crop((left, top, right, bottom))
                 
                 # Resize to max 1024x1024
